@@ -22,6 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "filesys.h"
 #include "settings.h"
 #include "log.h"
+#include "tile.h" // getImagePath
 #include "util/string.h"
 
 std::string getGameName(const std::string &game_path)
@@ -84,7 +85,10 @@ SubgameSpec findSubgame(const std::string &id)
 	std::string game_name = getGameName(game_path);
 	if(game_name == "")
 		game_name = id;
-	return SubgameSpec(id, game_path, gamemod_path, mods_paths, game_name);
+	std::string menubg_path = getImagePath(game_path + DIR_DELIM + "menubg.png");
+	std::string menuicon_path = getImagePath(game_path + DIR_DELIM + "menuicon.png");
+	return SubgameSpec(id, game_path, gamemod_path, mods_paths, game_name,
+			menubg_path, menuicon_path);
 }
 
 SubgameSpec findWorldSubgame(const std::string &world_path)

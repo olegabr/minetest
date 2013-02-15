@@ -118,6 +118,8 @@ enum
 	GUI_ID_SERVERLIST,
 	GUI_ID_SERVERLIST_TOGGLE,
 	GUI_ID_SERVERLIST_DELETE,
+	GUI_ID_GAME_BUTTON_FIRST = 130,
+	GUI_ID_GAME_BUTTON_MAX = 150,
 };
 
 enum
@@ -212,8 +214,12 @@ void GUIMainMenu::regenerateGui(v2u32 screensize)
 	{
 		core::rect<s32> rect(0, 0, size.X, 40);
 		rect += v2s32(4, 0);
-		Environment->addStaticText(narrow_to_wide(
-				"Minetest " VERSION_STRING).c_str(),
+		std::string t = "Minetest " VERSION_STRING;
+		if(m_data->selected_game != ""){
+			t += "/";
+			t += m_data->selected_game;
+		}
+		Environment->addStaticText(narrow_to_wide(t).c_str(),
 				rect, false, true, this, -1);
 	}
 
@@ -717,6 +723,27 @@ void GUIMainMenu::regenerateGui(v2u32 screensize)
 		}
 	}
 
+	/* Add game selection buttons */
+
+	video::IVideoDriver* driver = Environment->getVideoDriver();
+	for(size_t i=0; i<m_data->games.size(); i++){
+		const SubgameSpec *spec = &m_data->games[i];
+		v2s32 p(8 + i*(48+8), screensize.Y - (48+8));
+		core::rect<s32> rect(0, 0, 48, 48);
+		rect += p;
+		video::ITexture *bgtexture = NULL;
+		if(spec->menuicon_path != "")
+			bgtexture = driver->getTexture(spec->menuicon_path.c_str());
+		gui::IGUIButton *b = Environment->addButton(rect, this,
+				GUI_ID_GAME_BUTTON_FIRST+i, narrow_to_wide(wrap_rows(spec->id, 4)).c_str());
+		if(bgtexture){
+			b->setImage(bgtexture);
+			b->setText(L"");
+			b->setDrawBorder(false);
+			b->setUseAlphaChannel(true);
+		}
+	}
+
 	m_is_regenerating = false;
 }
 
@@ -726,7 +753,9 @@ void GUIMainMenu::drawMenu()
 	if (!skin)
 		return;
 	video::IVideoDriver* driver = Environment->getVideoDriver();
-	
+
+	/* Draw menu background */
+
 	/*video::SColor bgcolor(140,0,0,0);
 	driver->draw2DRectangle(bgcolor, AbsoluteRect, &AbsoluteClippingRect);*/
 
@@ -792,6 +821,8 @@ void GUIMainMenu::drawMenu()
 				NULL, NULL, true);
 		}
 	}
+
+	/* Draw UI elements */
 
 	gui::IGUIElement::draw();
 }
@@ -1019,7 +1050,7 @@ bool GUIMainMenu::OnEvent(const SEvent& event)
 				return true;
 			}
 			case GUI_ID_CREATE_WORLD_BUTTON: {
-				std::vector<SubgameSpec> games = getAvailableGames();
+				const std::vector<SubgameSpec> &games = m_data->games;
 				if(games.size() == 0){
 					GUIMessageMenu *menu = new GUIMessageMenu(env, parent,
 							-1, menumgr,
@@ -1090,6 +1121,14 @@ bool GUIMainMenu::OnEvent(const SEvent& event)
 				m_data->serverlist_show_available = !m_data->serverlist_show_available;
 			}
 			#endif
+			}
+			/* Game buttons */
+			int eid = event.GUIEvent.Caller->getID();
+			if(eid >= GUI_ID_GAME_BUTTON_FIRST &&
+					eid <= GUI_ID_GAME_BUTTON_MAX){
+				m_data->selected_game =
+						m_data->games[eid - GUI_ID_GAME_BUTTON_FIRST].id;
+				regenerateGui(m_screensize_old);
 			}
 		}
 		if(event.GUIEvent.EventType==gui::EGET_EDITBOX_ENTER)

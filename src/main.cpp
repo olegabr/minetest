@@ -596,11 +596,42 @@ private:
 	bool rightreleased;
 };
 
-void drawMenuBackground(video::IVideoDriver* driver)
+void drawMenuBackground(video::IVideoDriver* driver, const MainMenuData &menudata)
 {
-	core::dimension2d<u32> screensize = driver->getScreenSize();
-		
-	video::ITexture *bgtexture =
+	v2u32 screensize = driver->getScreenSize();
+
+	/* Find the current game */
+	const SubgameSpec *spec = NULL;
+	for(size_t i=0; i<menudata.games.size(); i++){
+		if(menudata.games[i].id == menudata.selected_game){
+			spec = &menudata.games[i];
+			break;
+		}
+	}
+
+	/* Figure out background texture */
+	video::ITexture *bgtexture = NULL;
+	if(spec && spec->menubg_path != ""){
+		bgtexture = driver->getTexture(spec->menubg_path.c_str());
+	}
+
+	/* If no texture, draw background of solid color */
+	if(!bgtexture){
+		video::SColor color(255,80,58,37);
+		core::rect<s32> rect(0, 0, screensize.X, screensize.Y);
+		driver->draw2DRectangle(color, rect, NULL);
+		return;
+	}
+
+	/* Draw background texture */
+	v2u32 sourcesize = bgtexture->getSize();
+	driver->draw2DImage(bgtexture,
+		core::rect<s32>(0, 0, screensize.X, screensize.Y),
+		core::rect<s32>(0, 0, sourcesize.X, sourcesize.Y),
+		NULL, NULL, true);
+
+
+	/*video::ITexture *bgtexture =
 			driver->getTexture(getTexturePath("menubg.png").c_str());
 	if(bgtexture)
 	{
@@ -640,7 +671,7 @@ void drawMenuBackground(video::IVideoDriver* driver)
 			core::rect<s32>(core::position2d<s32>(0,0),
 			core::dimension2di(logotexture->getSize())),
 			NULL, NULL, true);
-	}
+	}*/
 }
 
 #endif
@@ -1451,6 +1482,8 @@ int main(int argc, char *argv[])
 				MainMenuData menudata;
 				if(g_settings->exists("selected_mainmenu_tab"))
 					menudata.selected_tab = g_settings->getS32("selected_mainmenu_tab");
+				if(g_settings->exists("selected_mainmenu_game"))
+					menudata.selected_game = g_settings->get("selected_mainmenu_game");
 				menudata.address = narrow_to_wide(address);
 				menudata.name = narrow_to_wide(playername);
 				menudata.port = narrow_to_wide(itos(port));
@@ -1502,6 +1535,13 @@ int main(int argc, char *argv[])
 				}
 				// Copy worldspecs to menu
 				menudata.worlds = worldspecs;
+				// Get game listing
+				menudata.games = getAvailableGames();
+				// If selected game doesn't exist, take first from list
+				if(findSubgame(menudata.selected_game).id == "" &&
+						!menudata.games.empty()){
+					menudata.selected_game = menudata.games[0].id;
+				}
 
 				if(skip_main_menu == false)
 				{
@@ -1514,7 +1554,7 @@ int main(int argc, char *argv[])
 							break;
 						driver->beginScene(true, true,
 								video::SColor(255,128,128,128));
-						drawMenuBackground(driver);
+						drawMenuBackground(driver, menudata);
 						guienv->drawAll();
 						driver->endScene();
 						// On some computers framerate doesn't seem to be
@@ -1550,7 +1590,7 @@ int main(int argc, char *argv[])
 						//driver->beginScene(true, true, video::SColor(255,0,0,0));
 						driver->beginScene(true, true, video::SColor(255,128,128,128));
 
-						drawMenuBackground(driver);
+						drawMenuBackground(driver, menudata);
 
 						guienv->drawAll();
 						
@@ -1577,6 +1617,7 @@ int main(int argc, char *argv[])
 				simple_singleplayer_mode = menudata.simple_singleplayer_mode;
 				// Save settings
 				g_settings->setS32("selected_mainmenu_tab", menudata.selected_tab);
+				g_settings->set("selected_mainmenu_game", menudata.selected_game);
 				g_settings->set("new_style_leaves", itos(menudata.fancy_trees));
 				g_settings->set("smooth_lighting", itos(menudata.smooth_lighting));
 				g_settings->set("enable_3d_clouds", itos(menudata.clouds_3d));
