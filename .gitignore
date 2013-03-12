@@ -51,3 +51,5 @@ Makefile
 cmake_install.cmake
 locale/
 
+# IDE project files
+nbproject/
